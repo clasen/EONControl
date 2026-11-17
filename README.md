@@ -4,6 +4,10 @@ A native macOS app to control and EQ JBL EON615 speakers over Bluetooth, as a re
 
 ![EON Control](docs/screenshot.png)
 
+## Download
+
+Get `EON-Control.zip` from the [latest release](https://github.com/clasen/EONControl/releases/latest), unzip it and move **EON Control** to Applications. The app is signed and notarized by Apple, so it opens without warnings.
+
 ## Features
 
 - Connects to several speakers at once and reconnects on its own. "Move all together" applies every change to all of them.
@@ -59,6 +63,7 @@ After that the app remembers the speaker and reconnects automatically whenever i
 | `Sources/EONControl` | SwiftUI app: Bluetooth connection, model and views |
 | `Tests/EONKitTests` | Protocol and EQ tests, checked against frames captured from real speakers |
 | `scripts/build-app.sh` | Builds the `.app` bundle |
+| `scripts/release.sh` | Signs with Developer ID, notarizes, staples and zips the app for a release |
 
 ## Safety
 
