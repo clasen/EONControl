@@ -10,6 +10,11 @@ enum AppConfig {
         static let reconnectDelaySeconds = 2.0
     }
 
+    enum Input {
+        /// Trackpad scroll distance, in points, that counts as one step of a scrolled control.
+        static let trackpadPointsPerStep = 8.0
+    }
+
     enum Storage {
         static let knownSpeakersKey = "knownSpeakers"
         static let linkedKey = "linked"

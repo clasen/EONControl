@@ -49,12 +49,18 @@ public extension SoundSettings {
         }
     }
 
+    /// A step of about −6 dB below the crossover: the fixed 120 Hz bass shelf plus EQ 1 placing the knee.
+    private static let subwooferShapes: [Double: (bassGain: Double, ueq1: EQBand)] = [
+        100: (-6, EQBand(gain: -1, frequency: 80, q: 1)),
+        150: (-6, EQBand(gain: -3, frequency: 150, q: 0.9)),
+    ]
+
     private static func subwooferBands(crossover: Double?) -> (bass: EQBand, ueq1: EQBand) {
         guard let crossover else { return (factory[.bass], factory[.ueq1]) }
+        guard let shape = subwooferShapes[crossover] else { preconditionFailure("No EQ shape for \(crossover) Hz") }
         var bass = factory[.bass]
-        if crossover >= 150 { bass.gain = -6 }
-        let ueq1 = EQBand(gain: crossover >= 150 ? -3 : -2, frequency: crossover, q: crossover >= 150 ? 0.9 : 1)
-        return (bass, ueq1)
+        bass.gain = shape.bassGain
+        return (bass, shape.ueq1)
     }
 }
 

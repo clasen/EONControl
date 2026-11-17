@@ -119,6 +119,14 @@ struct MiscTests {
         #expect(abs(EQResponse.gain(of: s, at: 700) - -6) < 0.01)
     }
 
+    @Test(arguments: Preset.subwooferCrossovers)
+    func subwooferEQStepsDownBelowCrossover(crossover: Double) {
+        let s = SoundSettings.withSubwoofer(crossover: crossover)
+        #expect(EQResponse.gain(of: s, at: crossover / 2) <= -5)
+        #expect(EQResponse.gain(of: s, at: 30) <= -5)
+        #expect(EQResponse.gain(of: s, at: crossover * 2) >= -3.5)
+    }
+
     @Test func parsesModeNotification() {
         let n = StateNotification(bytes("00 00 07 00 09 02 00 00 00 00"))
         #expect(n == StateNotification(command: .mode, value: bytes("02 00 00 00 00")))

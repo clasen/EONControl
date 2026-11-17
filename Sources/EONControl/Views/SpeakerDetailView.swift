@@ -97,6 +97,10 @@ struct SpeakerDetailView: View {
                 }
             }
         }
+        .onScrollStep { steps in
+            guard let volume = speaker.state?.volume else { return }
+            model.setVolume(min(max(volume + steps, 0), 100), on: speaker)
+        }
     }
 
     private func equalizer(_ state: SpeakerState) -> some View {
@@ -120,6 +124,7 @@ struct SpeakerDetailView: View {
                 model.update { $0.sound[b] = eq }
             }
             .frame(height: 280)
+            .onScrollStep { steps in stepGain(band, steps) }
             HStack(spacing: 8) {
                 ForEach(Band.allCases) { b in bandCard(b, sound[b]) }
             }
@@ -141,15 +146,20 @@ struct SpeakerDetailView: View {
                 Spacer()
                 StepButton(symbol: "plus", label: "\(b.title) gain up") { setGain(b, eq.gain + 0.5) }
             }
+            .onScrollStep { steps in stepGain(b, steps) }
             HStack {
                 Text(eq.frequency.hzText).foregroundStyle(Theme.inkMuted)
+                    .onScrollStep { steps in stepFrequency(b, steps) }
                 Spacer()
                 if b.isParametric {
-                    Button { setQ(b, eq.q - 0.25) } label: { Image(systemName: "chevron.left") }
-                        .buttonStyle(.plain).accessibilityLabel("\(b.title) narrower")
-                    Text(String(format: "Q %.2f", eq.q)).foregroundStyle(Theme.inkTertiary)
-                    Button { setQ(b, eq.q + 0.25) } label: { Image(systemName: "chevron.right") }
-                        .buttonStyle(.plain).accessibilityLabel("\(b.title) wider Q")
+                    HStack {
+                        Button { setQ(b, eq.q - 0.25) } label: { Image(systemName: "chevron.left") }
+                            .buttonStyle(.plain).accessibilityLabel("\(b.title) narrower")
+                        Text(String(format: "Q %.2f", eq.q)).foregroundStyle(Theme.inkTertiary)
+                        Button { setQ(b, eq.q + 0.25) } label: { Image(systemName: "chevron.right") }
+                            .buttonStyle(.plain).accessibilityLabel("\(b.title) wider Q")
+                    }
+                    .onScrollStep { steps in stepQ(b, steps) }
                 }
             }
             .font(.system(size: 12))
@@ -174,15 +184,39 @@ struct SpeakerDetailView: View {
         model.update { $0.sound[b].q = min(max(q, EQBand.qRange.lowerBound), EQBand.qRange.upperBound) }
     }
 
+    private func stepGain(_ b: Band, _ steps: Int) {
+        band = b
+        model.update { s in
+            s.sound[b].gain = min(max(s.sound[b].gain + Double(steps) * 0.5, EQBand.gainRange.lowerBound),
+                                  EQBand.gainRange.upperBound)
+        }
+    }
+
+    /// Moves a parametric band by a twelfth of an octave per step; shelves have fixed frequencies.
+    private func stepFrequency(_ b: Band, _ steps: Int) {
+        guard b.isParametric else { return }
+        band = b
+        model.update { s in
+            let f = (s.sound[b].frequency * pow(2, Double(steps) / 12)).rounded()
+            s.sound[b].frequency = min(max(f, EQBand.frequencyRange.lowerBound), EQBand.frequencyRange.upperBound)
+        }
+    }
+
+    private func stepQ(_ b: Band, _ steps: Int) {
+        band = b
+        model.update { s in
+            s.sound[b].q = min(max(s.sound[b].q + Double(steps) * 0.25, EQBand.qRange.lowerBound), EQBand.qRange.upperBound)
+        }
+    }
+
     private func subwooferCrossover(_ sound: SoundSettings) -> Double? {
         sound.subwooferCrossover.flatMap { $0 == 0 ? nil : $0 }
     }
 
-    private func subwooferCaption(_ sound: SoundSettings) -> String {
+    private func subwooferCaption(_ sound: SoundSettings) -> String? {
         switch sound.subwooferCrossover {
-        case 0: "Where does your sub cut off?"
         case nil: "Bass and EQ 1 are set by hand."
-        default: "Crossover dip on Bass and EQ 1. Tune delay and polarity to align."
+        default: nil
         }
     }
 
@@ -201,14 +235,21 @@ struct SpeakerDetailView: View {
                 Text(String(format: "≈ %.2f m of distance", sound.delayMs * 0.343))
                     .font(.system(size: 12)).foregroundStyle(Theme.inkTertiary)
             }
+            .onScrollStep { steps in
+                model.update { s in
+                    s.sound.delayMs = min(max(s.sound.delayMs + Double(steps) * 0.5, SoundSettings.delayRange.lowerBound),
+                                          SoundSettings.delayRange.upperBound)
+                }
+            }
             PanelBox {
                 CapsLabel("Subwoofer")
                 Segmented(options: [(0.0, "None")] + Preset.subwooferCrossovers.map { ($0, "\(Int($0)) Hz") },
                           selection: sound.subwooferCrossover) { cut in
                     model.update { $0.sound.setSubwoofer(crossover: cut == 0 ? nil : cut) }
                 }
-                Text(subwooferCaption(sound))
-                    .font(.system(size: 12)).foregroundStyle(Theme.inkTertiary)
+                if let caption = subwooferCaption(sound) {
+                    Text(caption).font(.system(size: 12)).foregroundStyle(Theme.inkTertiary)
+                }
                 Toggle("Invert polarity", isOn: Binding(
                     get: { sound.polarity },
                     set: { v in model.update { $0.sound.polarity = v } }
